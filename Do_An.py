@@ -86,8 +86,8 @@ with tab1:
         df = pd.read_csv('Vietnamese_Names.csv', index_col=0)
         st.dataframe(df)
         
-        ethnic  = pd.read_excel('UIT-ViNames/Data_ethnic.xlsx')
-        data = pd.read_csv('UIT-ViNames/UIT-ViNames - Full.csv')
+        ethnic  = pd.read_excel('Data_ethnic.xlsx')
+        data = pd.read_csv('UIT-ViNames - Full.csv')
         
         data_female = pd.concat((data[data['Gender']==0].reset_index(drop=True), ethnic[ethnic['Gender']==0].reset_index(drop=True)), axis=0, ignore_index=True)
         data_male = pd.concat((data[data['Gender']==1].reset_index(drop=True), ethnic[ethnic['Gender']==1].reset_index(drop=True)), axis=0, ignore_index=True)
