@@ -106,7 +106,7 @@ def Plot_bar_chart(measure_cv, measure_tfidf):
     st.plotly_chart(fig)
 st.title('Gender Prediction Based on Vietnamese Names with Machine Learning')
 
-@st.experimental_memo
+@st.cache(suppress_st_warning=True)
 def Data_initialize():
     df = pd.read_csv('Vietnamese_Names.csv', index_col=0)
     ethnic = pd.read_excel('UIT-ViNames/Data_ethnic.xlsx')
@@ -164,7 +164,7 @@ if menu_id == 'Dataset':
     st.write(f'Điểm dữ liệu: {len(df)}')
 
 #Initialize model
-@st.experimental_memo
+@st.cache(suppress_st_warning=True)
 def Initialize_model():
     st.session_state['NB_model_cv'] = MultinomialNB()
     st.session_state['NB_model_tfidf'] = MultinomialNB()
