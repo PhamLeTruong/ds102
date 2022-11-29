@@ -166,6 +166,7 @@ if menu_id == 'Dataset':
 #Initialize model
 @st.experimental_singleton
 def Initialize_model():
+    st.write('')
     st.session_state['NB_model_cv'] = MultinomialNB()
     st.session_state['NB_model_tfidf'] = MultinomialNB()
     st.session_state['LR_model_cv'] = LogisticRegression()
