@@ -167,9 +167,9 @@ if menu_id == 'Dataset':
 @st.experimental_memo
 def Initialize_model():
     st.write('9999999999999999999999999')
-    st.session_state['NB_model_cv'] = MultinomialNB()
-    st.session_state['NB_model_tfidf'] = MultinomialNB()
-    st.session_state['LR_model_cv'] = LogisticRegression()
+    st.session_state.NB_model_cv = MultinomialNB()
+    st.session_state.NB_model_tfidf = MultinomialNB()
+    st.session_state.LR_model_cv = LogisticRegression()
     st.session_state['LR_model_tfidf'] = LogisticRegression()
     st.session_state['SVM_model_cv'] = SVC()
     st.session_state['SVM_model_tfidf'] = SVC()
