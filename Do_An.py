@@ -164,9 +164,9 @@ if menu_id == 'Dataset':
     st.write(f'Điểm dữ liệu: {len(df)}')
 
 #Initialize model
-@st.experimental_singleton
+@st.experimental_memo
 def Initialize_model():
-    st.write('')
+    st.write('9999999999999999999999999')
     st.session_state['NB_model_cv'] = MultinomialNB()
     st.session_state['NB_model_tfidf'] = MultinomialNB()
     st.session_state['LR_model_cv'] = LogisticRegression()
