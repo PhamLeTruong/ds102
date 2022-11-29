@@ -164,7 +164,7 @@ if menu_id == 'Dataset':
     st.write(f'Điểm dữ liệu: {len(df)}')
 
 #Initialize model
-@st.experimental_memo
+@st.experimental_singleton
 def Initialize_model():
     st.session_state['NB_model_cv'] = MultinomialNB()
     st.session_state['NB_model_tfidf'] = MultinomialNB()
