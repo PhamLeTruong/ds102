@@ -22,7 +22,7 @@ import xlsxwriter
 from io import BytesIO
 
 #make it look nice from the start
-st.set_page_config(layout='wide',initial_sidebar_state='collapsed')
+st.set_page_config(page_title='Gender Predict', page_icon='🚀', layout='wide',initial_sidebar_state='collapsed')
 
 # specify the primary menu definition
 menu_data = [
@@ -106,6 +106,7 @@ def Plot_bar_chart(measure_cv, measure_tfidf):
     st.plotly_chart(fig)
 st.title('Gender Prediction Based on Vietnamese Names with Machine Learning')
 
+@st.experimental_memo
 def Data_initialize():
     df = pd.read_csv('Vietnamese_Names.csv', index_col=0)
     ethnic = pd.read_excel('UIT-ViNames/Data_ethnic.xlsx')
@@ -142,9 +143,14 @@ def Data_initialize():
     return df, data_female, data_male, X_train_cv, X_test_cv, X_train_tfidf, X_test_tfidf, y_train, y_test
 
 # Dataset
+if 'encode_cv' not in st.session_state:
+    st.session_state['encode_cv'] = CountVectorizer()
+if 'encode_tfidf' not in st.session_state:
+    st.session_state['encode_tfidf'] = TfidfVectorizer()
+df, data_female, data_male, X_train_cv, X_test_cv, X_train_tfidf, X_test_tfidf, y_train, y_test = Data_initialize()
+
 if menu_id == 'Dataset':
     col1, col2 = st.columns(2)
-    df, data_female, data_male, X_train_cv, X_test_cv, X_train_tfidf, X_test_tfidf, y_train, y_test = Data_initialize()
     with col1:
         st.dataframe(df)
     with col2:
@@ -158,40 +164,24 @@ if menu_id == 'Dataset':
     st.write(f'Điểm dữ liệu: {len(df)}')
 
 #Initialize model
-name_model = ['NB_model_cv', 'LR_model_cv', 'SVM_model_cv', 'KNN_model_cv', 'DT_model_cv', 'RF_model_cv', 
-              'NB_model_tfidf', 'LR_model_tfidf', 'SVM_model_tfidf', 'KNN_model_tfidf', 'DT_model_tfidf', 'RF_model_tfidf']
-if 'NB_model_cv' not in st.session_state:
+@st.experimental_memo
+def Initialize_model():
     st.session_state['NB_model_cv'] = MultinomialNB()
-if 'NB_model_tfidf' not in st.session_state:
     st.session_state['NB_model_tfidf'] = MultinomialNB()
-if 'LR_model_cv' not in st.session_state:
     st.session_state['LR_model_cv'] = LogisticRegression()
-if 'LR_model_tfidf' not in st.session_state:
     st.session_state['LR_model_tfidf'] = LogisticRegression()
-if 'SVM_model_cv' not in st.session_state:
     st.session_state['SVM_model_cv'] = SVC()
-if 'SVM_model_tfidf' not in st.session_state:
     st.session_state['SVM_model_tfidf'] = SVC()
-if 'KNN_model_cv' not in st.session_state:
     st.session_state['KNN_model_cv'] = KNeighborsClassifier()
-if 'KNN_model_tfidf' not in st.session_state:
     st.session_state['KNN_model_tfidf'] = KNeighborsClassifier()
-if 'DT_model_cv' not in st.session_state:
     st.session_state['DT_model_cv'] = DecisionTreeClassifier(random_state=0)
-if 'DT_model_tfidf' not in st.session_state:
     st.session_state['DT_model_tfidf'] = DecisionTreeClassifier(random_state=0)
-if 'RF_model_cv' not in st.session_state:
     st.session_state['RF_model_cv'] = RandomForestClassifier(random_state=0)
-if 'RF_model_tfidf' not in st.session_state:
     st.session_state['RF_model_tfidf'] = RandomForestClassifier(random_state=0)
-if 'Voting_clf' not in st.session_state:
     st.session_state['Voting_clf'] = None
-    
-if 'encode_cv' not in st.session_state:
-    st.session_state['encode_cv'] = CountVectorizer()
-if 'encode_tfidf' not in st.session_state:
-    st.session_state['encode_tfidf'] = TfidfVectorizer()
-    
+
+Initialize_model()
+
 # Naive Bayes model
 if menu_id == 'Naive Bayes':
     st.header('Naive Bayes Model')
@@ -206,8 +196,6 @@ if menu_id == 'Naive Bayes':
 
     button2 = st.button('Run')
     if button2:
-        
-        _, _, _, X_train_cv, X_test_cv, X_train_tfidf, X_test_tfidf, y_train, y_test = Data_initialize()
         
         st.session_state.NB_model_cv = MultinomialNB(alpha=alpha, fit_prior=fit_prior, class_prior=class_prior)
         st.session_state.NB_model_tfidf = MultinomialNB(alpha=alpha, fit_prior=fit_prior, class_prior=class_prior)
@@ -244,7 +232,6 @@ if menu_id == 'SVM':
         
     button = st.button('Run SVM model')
     if button: 
-        _, _, _, X_train_cv, X_test_cv, X_train_tfidf, X_test_tfidf, y_train, y_test = Data_initialize()
         
         st.session_state.SVM_model_cv = SVC(C=C, kernel=kernel, degree=degree, gamma=gamma, max_iter=max_iter, random_state=random_state)
         st.session_state.SVM_model_tfidf = SVC(C=C, kernel=kernel, degree=degree, gamma=gamma, max_iter=max_iter, random_state=random_state)
@@ -277,7 +264,6 @@ if menu_id == 'Logistic Regression':
     button = st.button('Run Logistic Regression model')
     
     if button:
-        _, _, _, X_train_cv, X_test_cv, X_train_tfidf, X_test_tfidf, y_train, y_test = Data_initialize()
         
         st.session_state.LR_model_cv = LogisticRegression(penalty=penalty, C=C, fit_intercept=fit_intercept, random_state=random_state, max_iter=max_iter)
         st.session_state.LR_model_tfidf = LogisticRegression(penalty=penalty, C=C, fit_intercept=fit_intercept, random_state=random_state, max_iter=max_iter)
@@ -310,8 +296,7 @@ if menu_id == 'KNN':
     
     button = st.button('Run KNN model')
     if button:
-        _, _, _, X_train_cv, X_test_cv, X_train_tfidf, X_test_tfidf, y_train, y_test = Data_initialize()
-        
+     
         st.session_state.KNN_model_cv = KNeighborsClassifier(n_neighbors=n_neighbors, weights=weight, algorithm=algorithm, leaf_size=leaf, p=p, n_jobs=n_job)
         st.session_state.KNN_model_tfidf = KNeighborsClassifier(n_neighbors=n_neighbors, weights=weight, algorithm=algorithm, leaf_size=leaf, p=p, n_jobs=n_job)
         
@@ -354,7 +339,6 @@ if menu_id == 'Decision Tree':
     
     button = st.button('Run Decision Tree model')
     if button:
-        _, _, _, X_train_cv, X_test_cv, X_train_tfidf, X_test_tfidf, y_train, y_test = Data_initialize()
         
         st.session_state.DT_model_cv = DecisionTreeClassifier(criterion=criterion, splitter=splitter, max_depth=max_depth, 
                                               min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf,
@@ -413,8 +397,6 @@ if menu_id == 'RandomForest':
         
     button = st.button('Run Randomforest model')
     if button:
-        _, _, _, X_train_cv, X_test_cv, X_train_tfidf, X_test_tfidf, y_train, y_test = Data_initialize()
-        
         st.session_state.RF_model_cv = RandomForestClassifier(n_estimators=n_estimators, criterion=criterion, max_depth=max_depth, min_samples_split=min_samples_split,
                                              min_samples_leaf=min_samples_leaf, min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
                                              max_leaf_nodes=max_leaf_nodes, bootstrap=bootstrap, oob_score=oob_score, n_jobs=n_jobs, random_state=random_state, max_samples=max_samples)
@@ -435,12 +417,13 @@ if menu_id == 'RandomForest':
         
 # Votingclassifier model
 if menu_id == 'VotingClassifier':
-    st.write('Select 3 best model for VotingClassifier')
-    select_model = [st.checkbox(name_model) for name_model in ['Naive Bayes', 'Logistic Regression', 'Support Vector Machine', 'K-Nearest Neighbors', 'Decision Tree', 'RandomForest']]
-    if st.button('Run VotingClassifier'):
-        with hc.HyLoader('Wait for it...😅',hc.Loaders.standard_loaders,index=[2,2,2]):
-            _, _, _, X_train_cv, X_test_cv, X_train_tfidf, X_test_tfidf, y_train, y_test = Data_initialize()
-            
+    _, center, _ = st.columns(3)
+    with center:
+        st.subheader('Select 3 best model for VotingClassifier')
+        select_model = [st.checkbox(name_model) for name_model in ['Naive Bayes (Recommend)', 'Logistic Regression (Recommend)', 'Support Vector Machine (Recommend)', 'K-Nearest Neighbors', 'Decision Tree', 'RandomForest']]
+        button = st.button('Run VotingClassifier')
+    if button:
+        with hc.HyLoader('Wait for it...😅',hc.Loaders.standard_loaders,index=[3,0,5]):
             name_model_cv = [st.session_state.NB_model_cv, st.session_state.LR_model_cv, st.session_state.SVM_model_cv, st.session_state.KNN_model_cv, st.session_state.DT_model_cv, st.session_state.RF_model_cv]
             name_model_tfidf = [st.session_state.NB_model_tfidf, st.session_state.LR_model_tfidf, st.session_state.SVM_model_tfidf, st.session_state.KNN_model_tfidf, st.session_state.DT_model_tfidf, st.session_state.RF_model_tfidf]
             columns = ['Naive Bayes', 'Logistic Regression', 'Support Vector Machine', 'K-Nearest Neighbors', 'Decision Tree', 'RandomForest']
@@ -499,34 +482,43 @@ if menu_id == 'Enter Your Name':
                 st.markdown("<h1 style='text-align: center; color: grey;'>Gender is Female</h1>", unsafe_allow_html=True)
             else: st.markdown("<h1 style='text-align: center; color: grey;'>Gender is Male</h1>", unsafe_allow_html=True)
 if menu_id == 'Enter Your File (Excel)':
-    st.subheader('Upload File Fullname (xlsx):')
-    file_upload = st.file_uploader('', type='XLSX')
-    if file_upload is not None:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader('Display table')
-            df = pd.read_excel(file_upload, header=None, names=['Full_Name'])
-            st.dataframe(df)
-        with col2:
-            X_test = list(df.iloc[:,0])
-            for i in range(len(X_test)):
-                X_test[i] = Preprocessing(X_test[i])
-            X_test = st.session_state.encode_cv.transform(X_test)
-            y_pred = st.session_state.Voting_clf.predict(X_test)
-            st.subheader('Display Gender Predict:')
-            table = pd.concat([df, pd.DataFrame(y_pred, columns=['Gender_Predict'])], axis=1)
-            st.dataframe(table)
-            
-            output = BytesIO()
-            workbook = xlsxwriter.Workbook(output, {'in_memory': True})
-            worksheet = workbook.add_worksheet()
-            for i in range(table.shape[0]):
-                worksheet.write('A'+str(i+1), table.iloc[i,0])
-                worksheet.write('B'+str(i+1), table.iloc[i,1])
-            workbook.close()
-            st.download_button(
-                label="Download Result",
-                data=output.getvalue(),
-                file_name="Gender_Predict.xlsx",
-                mime="application/vnd.ms-excel"
-            )
+    if st.session_state.Voting_clf == None:
+        st.warning('Please Run VotingClassifier⚠️')
+    else:
+        st.subheader('Upload File Fullname (xlsx):')
+        file_upload = st.file_uploader('', type='XLSX')
+        if file_upload is not None:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader('Display table')
+                df = pd.read_excel(file_upload, header=None, names=['Full_Name'])
+                st.dataframe(df)
+            with col2:
+                X_test = list(df.iloc[:,0])
+                for i in range(len(X_test)):
+                    X_test[i] = Preprocessing(X_test[i])
+                X_test = st.session_state.encode_cv.transform(X_test)
+                y_pred = st.session_state.Voting_clf.predict(X_test)
+                st.subheader('Display Gender Predict:')
+                table = pd.concat([df, pd.DataFrame(y_pred, columns=['Gender_Predict'])], axis=1)
+                st.dataframe(table)
+                
+                output = BytesIO()
+                workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+                worksheet = workbook.add_worksheet()
+                for i in range(table.shape[0]):
+                    worksheet.write('A'+str(i+1), table.iloc[i,0])
+                    worksheet.write('B'+str(i+1), table.iloc[i,1])
+                workbook.close()
+                st.download_button(
+                    label="Download Result",
+                    data=output.getvalue(),
+                    file_name="Gender_Predict.xlsx",
+                    mime="application/vnd.ms-excel"
+                )
+                
+        
+        
+
+
+    
