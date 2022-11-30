@@ -20,6 +20,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import VotingClassifier
 import xlsxwriter
 from io import BytesIO
+import joblib
 
 #make it look nice from the start
 st.set_page_config(page_title='Gender Predict', page_icon='🚀', layout='wide',initial_sidebar_state='collapsed')
@@ -55,13 +56,14 @@ def Preprocessing(name):
   name = ' '.join(name.split()[1:])
   return name
 
-def Train_model(model, option):
+def Train_model(model, name_model, option):
     if option==1:
         model.fit(X_train_cv, y_train)
         y_pred = model.predict(X_test_cv)
     else: 
         model.fit(X_train_tfidf, y_train)
         y_pred = model.predict(X_test_tfidf)
+    joblib.dump(model, name_model)
     return y_pred
 
 def Measure_model(y_test, y_pred):
@@ -100,13 +102,13 @@ def Plot_bar_chart(measure_cv, measure_tfidf):
     countvector = go.Bar(x=x_label, y=measure_cv, name='CountVector')
     tfidfvector = go.Bar(x=x_label, y=measure_tfidf, name='TfidfVector')
     fig = go.Figure(data=[countvector, tfidfvector], layout=go.Layout(
-
             template='plotly_white',
             barmode = 'group'))
     st.plotly_chart(fig)
 st.title('Gender Prediction Based on Vietnamese Names with Machine Learning')
 
-@st.experimental_memo
+#@st.experimental_memo
+@st.cache(suppress_st_warning=True)
 def Data_initialize():
     df = pd.read_csv('Vietnamese_Names.csv', index_col=0)
     ethnic = pd.read_excel('UIT-ViNames/Data_ethnic.xlsx')
@@ -149,6 +151,20 @@ if 'encode_tfidf' not in st.session_state:
     st.session_state['encode_tfidf'] = TfidfVectorizer()
 df, data_female, data_male, X_train_cv, X_test_cv, X_train_tfidf, X_test_tfidf, y_train, y_test = Data_initialize()
 
+#Initialize model
+@st.experimental_memo
+def Initialize_model():
+    NB_model_cv, NB_model_tfidf = joblib.load('NB_model_cv.h5'), joblib.load('NB_model_tfidf.h5')
+    LR_model_cv, LR_model_tfidf = joblib.load('LR_model_cv.h5'), joblib.load('LR_model_tfidf.h5')
+    SVM_model_cv, SVM_model_tfidf = joblib.load('SVM_model_cv.h5'), joblib.load('SVM_model_tfidf.h5')
+    KNN_model_cv, KNN_model_tfidf = joblib.load('KNN_model_cv.h5'), joblib.load('KNN_model_tfidf.h5')
+    DT_model_cv, DT_model_tfidf = joblib.load('DT_model_cv.h5'), joblib.load('DT_model_tfidf.h5')
+    RF_model_cv, RF_model_tfidf = joblib.load('RF_model_cv.h5'), joblib.load('RF_model_tfidf.h5')
+    Voting_clf_cv, Voting_clf_tfidf = joblib.load('Voting_clf_cv.h5'), joblib.load('Voting_clf_tfidf.h5')
+    return NB_model_cv, NB_model_tfidf, LR_model_cv, LR_model_tfidf, SVM_model_cv, SVM_model_tfidf, KNN_model_cv, KNN_model_tfidf, DT_model_cv, DT_model_tfidf, RF_model_cv, RF_model_tfidf, Voting_clf_cv, Voting_clf_tfidf
+
+NB_model_cv, NB_model_tfidf, LR_model_cv, LR_model_tfidf, SVM_model_cv, SVM_model_tfidf, KNN_model_cv, KNN_model_tfidf, DT_model_cv, DT_model_tfidf, RF_model_cv, RF_model_tfidf, Voting_clf_cv, Voting_clf_tfidf = Initialize_model()
+
 if menu_id == 'Dataset':
     col1, col2 = st.columns(2)
     with col1:
@@ -162,25 +178,6 @@ if menu_id == 'Dataset':
     st.write(f'Giới tính nữ: {len(data_female)} ({round(len(data_female)/len(df) *100,2)}%)')
     st.write(f'Giới tính nam: {len(data_male)} ({round(len(data_male)/len(df) *100,2)}%)')
     st.write(f'Điểm dữ liệu: {len(df)}')
-
-#Initialize model
-@st.experimental_memo
-def Initialize_model():
-    st.session_state['NB_model_cv'] = MultinomialNB()
-    st.session_state['NB_model_tfidf'] = MultinomialNB()
-    st.session_state['LR_model_cv'] = LogisticRegression()
-    st.session_state['LR_model_tfidf'] = LogisticRegression()
-    st.session_state['SVM_model_cv'] = SVC()
-    st.session_state['SVM_model_tfidf'] = SVC()
-    st.session_state['KNN_model_cv'] = KNeighborsClassifier()
-    st.session_state['KNN_model_tfidf'] = KNeighborsClassifier()
-    st.session_state['DT_model_cv'] = DecisionTreeClassifier(random_state=0)
-    st.session_state['DT_model_tfidf'] = DecisionTreeClassifier(random_state=0)
-    st.session_state['RF_model_cv'] = RandomForestClassifier(random_state=0)
-    st.session_state['RF_model_tfidf'] = RandomForestClassifier(random_state=0)
-    st.session_state['Voting_clf'] = None
-
-Initialize_model()
 
 # Naive Bayes model
 if menu_id == 'Naive Bayes':
@@ -196,18 +193,21 @@ if menu_id == 'Naive Bayes':
 
     button2 = st.button('Run')
     if button2:
+        if [alpha, fit_prior, class_prior] == [1.0, True, None]:
+            y_pred_cv = NB_model_cv.predict(X_test_cv)
+            y_pred_tfidf = NB_model_tfidf.predict(X_test_tfidf)
+        else:
+            model_cv = MultinomialNB(alpha=alpha, fit_prior=fit_prior, class_prior=class_prior)
+            model_tfidf = MultinomialNB(alpha=alpha, fit_prior=fit_prior, class_prior=class_prior)
         
-        st.session_state.NB_model_cv = MultinomialNB(alpha=alpha, fit_prior=fit_prior, class_prior=class_prior)
-        st.session_state.NB_model_tfidf = MultinomialNB(alpha=alpha, fit_prior=fit_prior, class_prior=class_prior)
-        
-        y_pred_cv = Train_model(st.session_state.NB_model_cv, option=1)
-        y_pred_tfidf = Train_model(st.session_state.NB_model_tfidf, option=2)
+            y_pred_cv = Train_model(model_cv, 'NB_model_cv.h5', option=1)
+            y_pred_tfidf = Train_model(model_tfidf, 'NB_model_tfidf.h5', option=2)
 
         measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
         
         col1, col2 = st.columns(2)
         with col1:
-            Plot_confusion_matrix(st.session_state.NB_model_cv, st.session_state.NB_model_tfidf, model_name='Naive Bayes')
+            Plot_confusion_matrix(NB_model_cv, NB_model_tfidf, model_name='Naive Bayes')
         with col2:
             Plot_bar_chart(measure_cv, measure_tfidf)
 
@@ -232,18 +232,22 @@ if menu_id == 'SVM':
         
     button = st.button('Run SVM model')
     if button: 
+        if [C, kernel, degree, gamma, max_iter, random_state] == [1.0, 'rbf', 3, 'scale', -1, None]:
+            y_pred_cv = SVM_model_cv.predict(X_test_cv)
+            y_pred_tfidf = SVM_model_tfidf.predict(X_test_tfidf)
+        else:
         
-        st.session_state.SVM_model_cv = SVC(C=C, kernel=kernel, degree=degree, gamma=gamma, max_iter=max_iter, random_state=random_state)
-        st.session_state.SVM_model_tfidf = SVC(C=C, kernel=kernel, degree=degree, gamma=gamma, max_iter=max_iter, random_state=random_state)
+            st.session_state.SVM_model_cv = SVC(C=C, kernel=kernel, degree=degree, gamma=gamma, max_iter=max_iter, random_state=random_state)
+            st.session_state.SVM_model_tfidf = SVC(C=C, kernel=kernel, degree=degree, gamma=gamma, max_iter=max_iter, random_state=random_state)
 
-        y_pred_cv = Train_model(st.session_state.SVM_model_cv, option=1)
-        y_pred_tfidf = Train_model(st.session_state.SVM_model_tfidf, option=2)
+            y_pred_cv = Train_model(model_cv, 'SVM_model_cv', option=1)
+            y_pred_tfidf = Train_model(model_tfidf, 'SVM_model_tfidf', option=2)
 
         measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
         
         col1, col2 = st.columns(2)
         with col1:
-            Plot_confusion_matrix(st.session_state.SVM_model_cv, st.session_state.SVM_model_tfidf, model_name='SVM')
+            Plot_confusion_matrix(SVM_model_cv, SVM_model_tfidf, model_name='SVM')
         with col2:
             Plot_bar_chart(measure_cv, measure_tfidf)
 
@@ -264,18 +268,21 @@ if menu_id == 'Logistic Regression':
     button = st.button('Run Logistic Regression model')
     
     if button:
-        
-        st.session_state.LR_model_cv = LogisticRegression(penalty=penalty, C=C, fit_intercept=fit_intercept, random_state=random_state, max_iter=max_iter)
-        st.session_state.LR_model_tfidf = LogisticRegression(penalty=penalty, C=C, fit_intercept=fit_intercept, random_state=random_state, max_iter=max_iter)
-        
-        y_pred_cv = Train_model(st.session_state.LR_model_cv, option=1)
-        y_pred_tfidf = Train_model(st.session_state.LR_model_tfidf, option=2)
+        if [penalty, C, fit_intercept, random_state, solver, max_iter] == ['l2', 1.0, True, None, 'lbfgs', 100]:
+            y_pred_cv = LR_model_cv.predict(X_test_cv)
+            y_pred_tfidf = LR_model_tfidf.predict(X_test_tfidf)
+        else:
+            model_cv = LogisticRegression(penalty=penalty, C=C, fit_intercept=fit_intercept, random_state=random_state, solver=solver ,max_iter=max_iter)
+            model_tfidf = LogisticRegression(penalty=penalty, C=C, fit_intercept=fit_intercept, random_state=random_state, solver=solver, max_iter=max_iter)
+            
+            y_pred_cv = Train_model(model_cv, 'LR_model_cv', option=1)
+            y_pred_tfidf = Train_model(model_tfidf, 'LR_model_tfidf', option=2)
 
         measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
         
         col1, col2 = st.columns(2)
         with col1:
-            Plot_confusion_matrix(st.session_state.LR_model_cv, st.session_state.LR_model_tfidf, model_name='Logistic Regression')
+            Plot_confusion_matrix(LR_model_cv, LR_model_tfidf, model_name='Logistic Regression')
         with col2:
             Plot_bar_chart(measure_cv, measure_tfidf)
         
@@ -296,18 +303,21 @@ if menu_id == 'KNN':
     
     button = st.button('Run KNN model')
     if button:
-     
-        st.session_state.KNN_model_cv = KNeighborsClassifier(n_neighbors=n_neighbors, weights=weight, algorithm=algorithm, leaf_size=leaf, p=p, n_jobs=n_job)
-        st.session_state.KNN_model_tfidf = KNeighborsClassifier(n_neighbors=n_neighbors, weights=weight, algorithm=algorithm, leaf_size=leaf, p=p, n_jobs=n_job)
-        
-        y_pred_cv = Train_model(st.session_state.KNN_model_cv, option=1)
-        y_pred_tfidf = Train_model(st.session_state.KNN_model_tfidf, option=2)
+        if [n_neighbors, weight, algorithm, leaf, p, n_job] == [5, 'uniform', 'auto', 30, 2, None]:
+            y_pred_cv = KNN_model_cv.predict(X_test_cv)
+            y_pred_tfidf = KNN_model_tfidf.predict(X_test_tfidf)
+        else:
+            st.session_state.KNN_model_cv = KNeighborsClassifier(n_neighbors=n_neighbors, weights=weight, algorithm=algorithm, leaf_size=leaf, p=p, n_jobs=n_job)
+            st.session_state.KNN_model_tfidf = KNeighborsClassifier(n_neighbors=n_neighbors, weights=weight, algorithm=algorithm, leaf_size=leaf, p=p, n_jobs=n_job)
+            
+            y_pred_cv = Train_model(model_cv, 'KNN_model_cv', option=1)
+            y_pred_tfidf = Train_model(model_tfidf, 'KNN_model_tfidf', option=2)
 
         measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
         
         col1, col2 = st.columns(2)
         with col1:
-            Plot_confusion_matrix(st.session_state.KNN_model_cv, st.session_state.KNN_model_tfidf, model_name='Logistic Regression')
+            Plot_confusion_matrix(KNN_model_cv, KNN_model_tfidf, model_name='KNN')
         with col2:
             Plot_bar_chart(measure_cv, measure_tfidf)
 
@@ -339,28 +349,30 @@ if menu_id == 'Decision Tree':
     
     button = st.button('Run Decision Tree model')
     if button:
-        
-        st.session_state.DT_model_cv = DecisionTreeClassifier(criterion=criterion, splitter=splitter, max_depth=max_depth, 
-                                              min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf,
-                                              min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
-                                              random_state=random_state, max_leaf_nodes=max_leaf_nodes)
-        st.session_state.DT_model_tfidf = DecisionTreeClassifier(criterion=criterion, splitter=splitter, max_depth=max_depth, 
-                                              min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf,
-                                              min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
-                                              random_state=random_state, max_leaf_nodes=max_leaf_nodes)
-        y_pred_cv = Train_model(st.session_state.DT_model_cv, option=1)
-        y_pred_tfidf = Train_model(st.session_state.DT_model_tfidf, option=2)
+        if [criterion, splitter, max_depth, min_samples_split, min_samples_leaf, min_weight_fraction_leaf, max_features, random_state, max_leaf_nodes] == ['gini', 'best', None, 2, 1, 0.0, None, 0, None]:
+            y_pred_cv = DT_model_cv.predict(X_test_cv)
+            y_pred_tfidf = DT_model_tfidf.predict(X_test_tfidf)
+        else:
+            model_cv = DecisionTreeClassifier(criterion=criterion, splitter=splitter, max_depth=max_depth, 
+                                                min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf,
+                                                min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
+                                                random_state=random_state, max_leaf_nodes=max_leaf_nodes)
+            model_tfidf = DecisionTreeClassifier(criterion=criterion, splitter=splitter, max_depth=max_depth, 
+                                                min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf,
+                                                min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
+                                                random_state=random_state, max_leaf_nodes=max_leaf_nodes)
+            y_pred_cv = Train_model(model_cv, 'DT_model_cv', option=1)
+            y_pred_tfidf = Train_model(model_tfidf, 'DT_model_tfidf', option=2)
 
         measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
         
         col1, col2 = st.columns(2)
         with col1:
-            Plot_confusion_matrix(st.session_state.DT_model_cv, st.session_state.DT_model_tfidf, model_name='Decision Tree')
+            Plot_confusion_matrix(DT_model_cv, DT_model_tfidf, model_name='Decision Tree')
         with col2:
             Plot_bar_chart(measure_cv, measure_tfidf)
         
 # Random Forest model
-RF_model_cv, RF_model_tfidf = RandomForestClassifier(random_state=0), RandomForestClassifier(random_state=0)
 if menu_id == 'RandomForest':
     st.header('Random Forest Model')
     # List parameters of Random Forest model
@@ -397,21 +409,26 @@ if menu_id == 'RandomForest':
         
     button = st.button('Run Randomforest model')
     if button:
-        st.session_state.RF_model_cv = RandomForestClassifier(n_estimators=n_estimators, criterion=criterion, max_depth=max_depth, min_samples_split=min_samples_split,
-                                             min_samples_leaf=min_samples_leaf, min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
-                                             max_leaf_nodes=max_leaf_nodes, bootstrap=bootstrap, oob_score=oob_score, n_jobs=n_jobs, random_state=random_state, max_samples=max_samples)
-        st.session_state.RF_model_tfidf = RandomForestClassifier(n_estimators=n_estimators, criterion=criterion, max_depth=max_depth, min_samples_split=min_samples_split,
-                                             min_samples_leaf=min_samples_leaf, min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
-                                             max_leaf_nodes=max_leaf_nodes, bootstrap=bootstrap, oob_score=oob_score, n_jobs=n_jobs, random_state=random_state, max_samples=max_samples)
-    
-        y_pred_cv = Train_model(st.session_state.RF_model_cv, option=1)
-        y_pred_tfidf = Train_model(st.session_state.RF_model_tfidf, option=2)
+        if [n_estimators, criterion, max_depth, min_samples_split, min_samples_leaf, min_weight_fraction_leaf, 
+            max_features, max_leaf_nodes, bootstrap, oob_score, n_jobs, random_state, max_samples] == [100, 'gini', None, 2, 1, 0.0, 'sqrt', None, True, False, None, 0, None]:
+            y_pred_cv = RF_model_cv.predict(X_test_cv)
+            y_pred_tfidf = RF_model_tfidf.predict(X_test_tfidf)
+        else:
+            model_cv = RandomForestClassifier(n_estimators=n_estimators, criterion=criterion, max_depth=max_depth, min_samples_split=min_samples_split,
+                                                min_samples_leaf=min_samples_leaf, min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
+                                                max_leaf_nodes=max_leaf_nodes, bootstrap=bootstrap, oob_score=oob_score, n_jobs=n_jobs, random_state=random_state, max_samples=max_samples)
+            model_tfidf = RandomForestClassifier(n_estimators=n_estimators, criterion=criterion, max_depth=max_depth, min_samples_split=min_samples_split,
+                                                min_samples_leaf=min_samples_leaf, min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
+                                                max_leaf_nodes=max_leaf_nodes, bootstrap=bootstrap, oob_score=oob_score, n_jobs=n_jobs, random_state=random_state, max_samples=max_samples)
+        
+            y_pred_cv = Train_model(model_cv, 'RF_model_cv', option=1)
+            y_pred_tfidf = Train_model(model_tfidf, 'RF_model_tfidf', option=2)
 
         measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
         
         col1, col2 = st.columns(2)
         with col1:
-            Plot_confusion_matrix(st.session_state.RF_model_cv, st.session_state.RF_model_tfidf, model_name='RandomForest')
+            Plot_confusion_matrix(RF_model_cv, RF_model_tfidf, model_name='RandomForest')
         with col2:
             Plot_bar_chart(measure_cv, measure_tfidf)
         
@@ -423,39 +440,40 @@ if menu_id == 'VotingClassifier':
         select_model = [st.checkbox(name_model) for name_model in ['Naive Bayes (Recommend)', 'Logistic Regression (Recommend)', 'Support Vector Machine (Recommend)', 'K-Nearest Neighbors', 'Decision Tree', 'RandomForest']]
         button = st.button('Run VotingClassifier')
     if button:
+        columns = ['Naive Bayes', 'Logistic Regression', 'Support Vector Machine', 'K-Nearest Neighbors', 'Decision Tree', 'RandomForest']
+        col = [columns[idx] for idx, name in enumerate(select_model) if name==True]
+        score_cv, score_tfidf, estimate, ii = [], [], [], []
         with hc.HyLoader('Wait for it...😅',hc.Loaders.standard_loaders,index=[3,0,5]):
-            name_model_cv = [st.session_state.NB_model_cv, st.session_state.LR_model_cv, st.session_state.SVM_model_cv, st.session_state.KNN_model_cv, st.session_state.DT_model_cv, st.session_state.RF_model_cv]
-            name_model_tfidf = [st.session_state.NB_model_tfidf, st.session_state.LR_model_tfidf, st.session_state.SVM_model_tfidf, st.session_state.KNN_model_tfidf, st.session_state.DT_model_tfidf, st.session_state.RF_model_tfidf]
-            columns = ['Naive Bayes', 'Logistic Regression', 'Support Vector Machine', 'K-Nearest Neighbors', 'Decision Tree', 'RandomForest']
-            score_cv, score_tfidf, col, estimate, ii = [], [], [], [], []
-            st.session_state.SVM_model_cv.probability=True
-            st.session_state.SVM_model_tfidf.probability=True
+                
+            name_model_cv = [NB_model_cv, LR_model_cv, SVM_model_cv, KNN_model_cv, DT_model_cv, RF_model_cv]
+            name_model_tfidf = [NB_model_tfidf, LR_model_tfidf, SVM_model_tfidf, KNN_model_tfidf, DT_model_tfidf, RF_model_tfidf]
+            
+            SVM_model_cv.probability=True
+            SVM_model_tfidf.probability=True
             
             for i in range(len(select_model)):
                 if select_model[i]:
-                    name_model_cv[i].fit(X_train_cv, y_train)
-                    name_model_tfidf[i].fit(X_train_tfidf, y_train)
                     score_cv.append(round(f1_score(y_test, name_model_cv[i].predict(X_test_cv), average='macro'),4))
                     score_tfidf.append(round(f1_score(y_test, name_model_tfidf[i].predict(X_test_tfidf), average='macro'),4))
-                    col.append(columns[i])
                     
             ii = [i for i, val in enumerate(select_model) if val==True]
-            weight_cv = [1+ index for index in np.argsort(score_cv)]
+            weight_cv = [1+ index for index in np.argsort(score_cv)]    #Bộ trọng số weight cho Voting
             weight_tfidf = [1+ index for index in np.argsort(score_tfidf)]
             
-            voting_clf_cv = VotingClassifier(estimators=[('model1',name_model_cv[ii[0]]),('model2',name_model_cv[ii[1]]),('model3',name_model_cv[ii[2]])], voting='soft',weights=weight_cv)
-            voting_clf_tfidf = VotingClassifier(estimators=[('model1',name_model_tfidf[ii[0]]),('model2',name_model_tfidf[ii[1]]),('model3',name_model_tfidf[ii[2]])], voting='soft',weights=weight_tfidf)
-            voting_clf_cv.fit(X_train_cv, y_train)
-            voting_clf_tfidf.fit(X_train_tfidf, y_train)
-            col.append('VotingClassifier')
+            if select_model == [True, True, True, False, False, False]:
+                voting_clf_cv = Voting_clf_cv
+                voting_clf_tfidf = Voting_clf_tfidf
+            else:
+                voting_clf_cv = VotingClassifier(estimators=[('model1',name_model_cv[ii[0]]),('model2',name_model_cv[ii[1]]),('model3',name_model_cv[ii[2]])], voting='soft',weights=weight_cv)
+                voting_clf_tfidf = VotingClassifier(estimators=[('model1',name_model_tfidf[ii[0]]),('model2',name_model_tfidf[ii[1]]),('model3',name_model_tfidf[ii[2]])], voting='soft',weights=weight_tfidf)
+                voting_clf_cv.fit(X_train_cv, y_train)
+                voting_clf_tfidf.fit(X_train_tfidf, y_train)
             
             y_pred_cv = voting_clf_cv.predict(X_test_cv)
             y_pred_tfidf = voting_clf_tfidf.predict(X_test_tfidf)
+            col.append('VotingClassifier')
             score_cv.append(round(f1_score(y_test, y_pred_cv, average='macro'),4))
             score_tfidf.append(round(f1_score(y_test, y_pred_tfidf, average='macro'),4))
-            if score_cv > score_tfidf:
-                st.session_state.Voting_clf = voting_clf_cv
-            else: st.session_state.Voting_clf = voting_clf_tfidf
             score = ['F1-score (CountVector)', 'F1-score (TfidfVector)']
             st.table(pd.DataFrame([score_cv, score_tfidf], columns=col, index=score))
             
@@ -468,54 +486,48 @@ if menu_id == 'VotingClassifier':
                 Plot_bar_chart([acc_cv, pre_cv, recall_cv, f1_cv_avg], [acc_tfidf, pre_tfidf, recall_tfidf, f1_tfidf_avg])
                 
 if menu_id == 'Enter Your Name':
-    if st.session_state.Voting_clf == None:
-        st.warning('Please Run VotingClassifier⚠️')
-    else:
-        st.markdown("<h1 style='text-align: center; color: grey;'>Enter Your Name</h1>", unsafe_allow_html=True)
-        name = st.text_input('', label_visibility="collapsed")
-        if st.button('Predict'):
-            name = Preprocessing(name)
-            st.markdown("<h1 style='text-align: center; color: grey;'>Predict Gender</h1>", unsafe_allow_html=True)
-            vector = st.session_state['encode_cv'].transform([name]).toarray()
-            y_pred = st.session_state.Voting_clf.predict(vector)
-            if y_pred==0:
-                st.markdown("<h1 style='text-align: center; color: grey;'>Gender is Female</h1>", unsafe_allow_html=True)
-            else: st.markdown("<h1 style='text-align: center; color: grey;'>Gender is Male</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: grey;'>Enter Your Name</h1>", unsafe_allow_html=True)
+    name = st.text_input('', label_visibility="collapsed")
+    if st.button('Predict'):
+        name = Preprocessing(name)
+        st.markdown("<h1 style='text-align: center; color: grey;'>Predict Gender</h1>", unsafe_allow_html=True)
+        vector = st.session_state.encode_cv.transform([name]).toarray()
+        y_pred = Voting_clf_cv.predict(vector)
+        if y_pred==0:
+            st.markdown("<h1 style='text-align: center; color: green;'>Gender is Female</h1>", unsafe_allow_html=True)
+        else: st.markdown("<h1 style='text-align: center; color: green;'>Gender is Male</h1>", unsafe_allow_html=True)
 if menu_id == 'Enter Your File (Excel)':
-    if st.session_state.Voting_clf == None:
-        st.warning('Please Run VotingClassifier⚠️')
-    else:
-        st.subheader('Upload File Fullname (xlsx):')
-        file_upload = st.file_uploader('', type='XLSX')
-        if file_upload is not None:
-            col1, col2 = st.columns(2)
-            with col1:
-                st.subheader('Display table')
-                df = pd.read_excel(file_upload, header=None, names=['Full_Name'])
-                st.dataframe(df)
-            with col2:
-                X_test = list(df.iloc[:,0])
-                for i in range(len(X_test)):
-                    X_test[i] = Preprocessing(X_test[i])
-                X_test = st.session_state.encode_cv.transform(X_test)
-                y_pred = st.session_state.Voting_clf.predict(X_test)
-                st.subheader('Display Gender Predict:')
-                table = pd.concat([df, pd.DataFrame(y_pred, columns=['Gender_Predict'])], axis=1)
-                st.dataframe(table)
-                
-                output = BytesIO()
-                workbook = xlsxwriter.Workbook(output, {'in_memory': True})
-                worksheet = workbook.add_worksheet()
-                for i in range(table.shape[0]):
-                    worksheet.write('A'+str(i+1), table.iloc[i,0])
-                    worksheet.write('B'+str(i+1), table.iloc[i,1])
-                workbook.close()
-                st.download_button(
-                    label="Download Result",
-                    data=output.getvalue(),
-                    file_name="Gender_Predict.xlsx",
-                    mime="application/vnd.ms-excel"
-                )
+    st.subheader('Upload File Fullname (xlsx):')
+    file_upload = st.file_uploader('', type='XLSX')
+    if file_upload is not None:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader('Display table')
+            df = pd.read_excel(file_upload, header=None, names=['Full_Name'])
+            st.dataframe(df)
+        with col2:
+            X_test = list(df.iloc[:,0])
+            for i in range(len(X_test)):
+                X_test[i] = Preprocessing(X_test[i])
+            X_test = st.session_state.encode_cv.transform(X_test)
+            y_pred = Voting_clf_cv.predict(X_test)
+            st.subheader('Display Gender Predict:')
+            table = pd.concat([df, pd.DataFrame(y_pred, columns=['Gender_Predict'])], axis=1)
+            st.dataframe(table)
+            
+            output = BytesIO()
+            workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+            worksheet = workbook.add_worksheet()
+            for i in range(table.shape[0]):
+                worksheet.write('A'+str(i+1), table.iloc[i,0])
+                worksheet.write('B'+str(i+1), table.iloc[i,1])
+            workbook.close()
+            st.download_button(
+                label="Download Result",
+                data=output.getvalue(),
+                file_name="Gender_Predict.xlsx",
+                mime="application/vnd.ms-excel"
+            )
                 
         
         
