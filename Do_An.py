@@ -108,7 +108,7 @@ def Plot_bar_chart(measure_cv, measure_tfidf):
 st.title('Gender Prediction Based on Vietnamese Names with Machine Learning')
 
 #@st.experimental_memo
-@st.cache(suppress_st_warning=True)
+@st.cache(suppress_st_warning=True, allow_output_mutation=True)
 def Data_initialize():
     df = pd.read_csv('Vietnamese_Names.csv', index_col=0)
     ethnic = pd.read_excel('UIT-ViNames/Data_ethnic.xlsx')
