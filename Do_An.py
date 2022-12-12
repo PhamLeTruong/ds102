@@ -1,6 +1,5 @@
 import streamlit as st
 import hydralit_components as hc
-import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -38,7 +37,7 @@ menu_data = [
 ]
 
 #over_theme = {'txc_inactive': '#FFFFFF'}
-over_theme = {'txc_inactive': '#FFFFFF','menu_background':'#22e0dd','txc_active':'black','option_active':'white'}
+over_theme = {'menu_background':'#22e0dd','txc_active':'black','option_active':'white'}
 menu_id = hc.nav_bar(
     menu_definition=menu_data,
     override_theme=over_theme,
@@ -56,14 +55,13 @@ def Preprocessing(name):
   name = ' '.join(name.split()[1:])
   return name
 
-def Train_model(model, name_model, option):
-    if option==1:
+def Train_model(model, name_model):
+    if name_model[-5:-3]=='cv':
         model.fit(X_train_cv, y_train)
         y_pred = model.predict(X_test_cv)
     else: 
         model.fit(X_train_tfidf, y_train)
         y_pred = model.predict(X_test_tfidf)
-    joblib.dump(model, name_model)
     return y_pred
 
 def Measure_model(y_test, y_pred):
@@ -179,258 +177,271 @@ if menu_id == 'Dataset':
     st.write(f'Giới tính nam: {len(data_male)} ({round(len(data_male)/len(df) *100,2)}%)')
     st.write(f'Điểm dữ liệu: {len(df)}')
 
+_,center,_ = st.columns(3)
 # Naive Bayes model
 if menu_id == 'Naive Bayes':
-    st.header('Naive Bayes Model')
-    # List parameters of Naive Bayes model
-    st.subheader('Select parameter')
-    alpha = st.number_input('alpha : float, default=1.0', min_value=0.0, max_value=1.0, step=0.1, value=1.0)
-    fit_prior = st.radio('fit_prior : bool, default=True', ['True', 'False'])
-    class_prior = st.text_input('class_prior : array-like of shape (n_classes,), default=None', value=None)
-    if class_prior != 'None':
-        class_prior = float(class_prior)
-    else: class_prior = None
+    with center:
+        st.header('Naive Bayes Model')
+        # List parameters of Naive Bayes model
+        st.subheader('Select parameter')
+        alpha = st.number_input('alpha : float, default=1.0', min_value=0.0, max_value=1.0, step=0.1, value=1.0)
+        fit_prior = st.radio('fit_prior : bool, default=True', ['True', 'False'])
+        class_prior = st.text_input('class_prior : array-like of shape (n_classes,), default=None', value=None)
+        if class_prior != 'None':
+            class_prior = float(class_prior)
+        else: class_prior = None
 
-    button2 = st.button('Run')
+        button2 = st.button('Run')
     if button2:
-        if [alpha, fit_prior, class_prior] == [1.0, True, None]:
-            y_pred_cv = NB_model_cv.predict(X_test_cv)
-            y_pred_tfidf = NB_model_tfidf.predict(X_test_tfidf)
-        else:
-            model_cv = MultinomialNB(alpha=alpha, fit_prior=fit_prior, class_prior=class_prior)
-            model_tfidf = MultinomialNB(alpha=alpha, fit_prior=fit_prior, class_prior=class_prior)
-        
-            y_pred_cv = Train_model(model_cv, 'NB_model_cv.h5', option=1)
-            y_pred_tfidf = Train_model(model_tfidf, 'NB_model_tfidf.h5', option=2)
+        with hc.HyLoader('Wait for it...😅',hc.Loaders.standard_loaders,index=[3,0,5]):
+            if [alpha, fit_prior, class_prior] == [1.0, True, None]:
+                y_pred_cv = NB_model_cv.predict(X_test_cv)
+                y_pred_tfidf = NB_model_tfidf.predict(X_test_tfidf)
+            else:
+                model_cv = MultinomialNB(alpha=alpha, fit_prior=fit_prior, class_prior=class_prior)
+                model_tfidf = MultinomialNB(alpha=alpha, fit_prior=fit_prior, class_prior=class_prior)
+            
+                y_pred_cv = Train_model(model_cv, 'NB_model_cv.h5')
+                y_pred_tfidf = Train_model(model_tfidf, 'NB_model_tfidf.h5')
 
-        measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            Plot_confusion_matrix(NB_model_cv, NB_model_tfidf, model_name='Naive Bayes')
-        with col2:
-            Plot_bar_chart(measure_cv, measure_tfidf)
+            measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                Plot_confusion_matrix(NB_model_cv, NB_model_tfidf, model_name='Naive Bayes')
+            with col2:
+                Plot_bar_chart(measure_cv, measure_tfidf)
 
 # SVM model
 if menu_id == 'SVM':
-    st.header('Support Machine Vector Model')
-    # List parameters of SVM model
-    st.subheader('Select parameter')
-    C = st.number_input('C : float, default=1.0', min_value=0.0, max_value=100.0, step=0.1, value=1.0)
-    kernel = st.radio('kernel : {‘linear’, ‘poly’, ‘rbf’, ‘sigmoid’, ‘precomputed’} or callable, default=’rbf’', ['linear', 'poly', 'rbf', 'sigmoid', 'precomputed'], index=2)
-    if kernel == 'poly':
-        degree = st.number_input('degree : int, default=3', value=3)
-    else: degree = 3
-    gamma = st.radio('gamma : {‘scale’, ‘auto’} or float, default=’scale’', ['scale', 'auto', 'float'])
-    if gamma == 'float':
-        gamma = st.number_input('Enter value of gamma', min_value=0.0, max_value=1.0)
-    max_iter = st.number_input('max_iter : int, default=-1', min_value=-1, max_value=1000, step=1, value=-1)
-    random_state = st.text_input('random_state : int, RandomState instance or None, default=None', value='None')
-    if random_state != 'None':
-        random_state = int(random_state)
-    else: random_state = None
-        
-    button = st.button('Run SVM model')
+    with center:
+        st.header('Support Machine Vector Model')
+        # List parameters of SVM model
+        st.subheader('Select parameter')
+        C = st.number_input('C : float, default=1.0', min_value=0.0, max_value=100.0, step=0.1, value=1.0)
+        kernel = st.radio('kernel : {‘linear’, ‘poly’, ‘rbf’, ‘sigmoid’, ‘precomputed’} or callable, default=’rbf’', ['linear', 'poly', 'rbf', 'sigmoid', 'precomputed'], index=2)
+        if kernel == 'poly':
+            degree = st.number_input('degree : int, default=3', value=3)
+        else: degree = 3
+        gamma = st.radio('gamma : {‘scale’, ‘auto’} or float, default=’scale’', ['scale', 'auto', 'float'])
+        if gamma == 'float':
+            gamma = st.number_input('Enter value of gamma', min_value=0.0, max_value=1.0)
+        max_iter = st.number_input('max_iter : int, default=-1', min_value=-1, max_value=1000, step=1, value=-1)
+        random_state = st.text_input('random_state : int, RandomState instance or None, default=None', value='None')
+        if random_state != 'None':
+            random_state = int(random_state)
+        else: random_state = None
+            
+        button = st.button('Run SVM model')
     if button: 
-        if [C, kernel, degree, gamma, max_iter, random_state] == [1.0, 'rbf', 3, 'scale', -1, None]:
-            y_pred_cv = SVM_model_cv.predict(X_test_cv)
-            y_pred_tfidf = SVM_model_tfidf.predict(X_test_tfidf)
-        else:
-        
-            st.session_state.SVM_model_cv = SVC(C=C, kernel=kernel, degree=degree, gamma=gamma, max_iter=max_iter, random_state=random_state)
-            st.session_state.SVM_model_tfidf = SVC(C=C, kernel=kernel, degree=degree, gamma=gamma, max_iter=max_iter, random_state=random_state)
+        with hc.HyLoader('Wait for it...😅',hc.Loaders.standard_loaders,index=[3,0,5]):
+            if [C, kernel, degree, gamma, max_iter, random_state] == [1.0, 'rbf', 3, 'scale', -1, None]:
+                y_pred_cv = SVM_model_cv.predict(X_test_cv)
+                y_pred_tfidf = SVM_model_tfidf.predict(X_test_tfidf)
+            else:
+            
+                st.session_state.SVM_model_cv = SVC(C=C, kernel=kernel, degree=degree, gamma=gamma, max_iter=max_iter, random_state=random_state)
+                st.session_state.SVM_model_tfidf = SVC(C=C, kernel=kernel, degree=degree, gamma=gamma, max_iter=max_iter, random_state=random_state)
 
-            y_pred_cv = Train_model(model_cv, 'SVM_model_cv', option=1)
-            y_pred_tfidf = Train_model(model_tfidf, 'SVM_model_tfidf', option=2)
+                y_pred_cv = Train_model(model_cv, 'SVM_model_cv')
+                y_pred_tfidf = Train_model(model_tfidf, 'SVM_model_tfidf')
 
-        measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            Plot_confusion_matrix(SVM_model_cv, SVM_model_tfidf, model_name='SVM')
-        with col2:
-            Plot_bar_chart(measure_cv, measure_tfidf)
+            measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                Plot_confusion_matrix(SVM_model_cv, SVM_model_tfidf, model_name='SVM')
+            with col2:
+                Plot_bar_chart(measure_cv, measure_tfidf)
 
 # Logistic Regression model
 if menu_id == 'Logistic Regression':
-    st.header('Logistic Regression Model')
-    # List parameters of Logistic Regression model
-    st.subheader('Select parameter')
-    penalty = st.radio('penalty : {‘l1’, ‘l2’, ‘elasticnet’, ‘none’}, default=’l2’', ['l1', 'l2', 'elasticnet', 'none'], index=1)
-    C = st.number_input('C : float, default=1.0', min_value=0.0, max_value=1000.0, step=0.1, value=1.0)
-    fit_intercept = st.radio('fit_interceptbool, default=True', [True, False])
-    random_state = st.text_input('random_state : int, RandomState instance, default=None', value='None')
-    if random_state != 'None':
-        random_state = int(random_state)
-    else: random_state = None
-    solver = st.radio('solver : {‘newton-cg’, ‘lbfgs’, ‘liblinear’, ‘sag’, ‘saga’}, default=’lbfgs’', ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'], index=1)
-    max_iter = st.number_input('max_iter : int, default=100', min_value=0, max_value=1000, step=1, value=100)
-    button = st.button('Run Logistic Regression model')
+    with center:
+        st.header('Logistic Regression Model')
+        # List parameters of Logistic Regression model
+        st.subheader('Select parameter')
+        penalty = st.radio('penalty : {‘l1’, ‘l2’, ‘elasticnet’, ‘none’}, default=’l2’', ['l1', 'l2', 'elasticnet', 'none'], index=1)
+        C = st.number_input('C : float, default=1.0', min_value=0.0, max_value=1000.0, step=0.1, value=1.0)
+        fit_intercept = st.radio('fit_interceptbool, default=True', [True, False])
+        random_state = st.text_input('random_state : int, RandomState instance, default=None', value='None')
+        if random_state != 'None':
+            random_state = int(random_state)
+        else: random_state = None
+        solver = st.radio('solver : {‘newton-cg’, ‘lbfgs’, ‘liblinear’, ‘sag’, ‘saga’}, default=’lbfgs’', ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'], index=1)
+        max_iter = st.number_input('max_iter : int, default=100', min_value=0, max_value=1000, step=1, value=100)
+        button = st.button('Run Logistic Regression model')
     
     if button:
-        if [penalty, C, fit_intercept, random_state, solver, max_iter] == ['l2', 1.0, True, None, 'lbfgs', 100]:
-            y_pred_cv = LR_model_cv.predict(X_test_cv)
-            y_pred_tfidf = LR_model_tfidf.predict(X_test_tfidf)
-        else:
-            model_cv = LogisticRegression(penalty=penalty, C=C, fit_intercept=fit_intercept, random_state=random_state, solver=solver ,max_iter=max_iter)
-            model_tfidf = LogisticRegression(penalty=penalty, C=C, fit_intercept=fit_intercept, random_state=random_state, solver=solver, max_iter=max_iter)
-            
-            y_pred_cv = Train_model(model_cv, 'LR_model_cv', option=1)
-            y_pred_tfidf = Train_model(model_tfidf, 'LR_model_tfidf', option=2)
+        with hc.HyLoader('Wait for it...😅',hc.Loaders.standard_loaders,index=[3,0,5]):
+            if [penalty, C, fit_intercept, random_state, solver, max_iter] == ['l2', 1.0, True, None, 'lbfgs', 100]:
+                y_pred_cv = LR_model_cv.predict(X_test_cv)
+                y_pred_tfidf = LR_model_tfidf.predict(X_test_tfidf)
+            else:
+                model_cv = LogisticRegression(penalty=penalty, C=C, fit_intercept=fit_intercept, random_state=random_state, solver=solver ,max_iter=max_iter)
+                model_tfidf = LogisticRegression(penalty=penalty, C=C, fit_intercept=fit_intercept, random_state=random_state, solver=solver, max_iter=max_iter)
+                
+                y_pred_cv = Train_model(model_cv, 'LR_model_cv')
+                y_pred_tfidf = Train_model(model_tfidf, 'LR_model_tfidf')
 
-        measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            Plot_confusion_matrix(LR_model_cv, LR_model_tfidf, model_name='Logistic Regression')
-        with col2:
-            Plot_bar_chart(measure_cv, measure_tfidf)
+            measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                Plot_confusion_matrix(LR_model_cv, LR_model_tfidf, model_name='Logistic Regression')
+            with col2:
+                Plot_bar_chart(measure_cv, measure_tfidf)
         
 # KNN model
 if menu_id == 'KNN':
-    st.header('K-Nearest Neighbors Model')
-    # List parameters of K-Nearest Neighbors model
-    st.subheader('Select parameter')
-    n_neighbors = st.number_input('n_neighbors : int, default=5', value=5)
-    weight = st.radio('weights{‘uniform’, ‘distance’} or callable, default=’uniform’', ['uniform', 'distance'])
-    algorithm = st.radio('algorithm{‘auto’, ‘ball_tree’, ‘kd_tree’, ‘brute’}, default=’auto’', ['auto', 'ball_tree', 'kd_tree', 'brute'])
-    leaf = st.number_input('leaf_sizeint, default=30', value=30)
-    p = st.number_input('p : int, default=2', value=2)
-    n_job = st.text_input('n_jobs : int, default=None', value=None)
-    if n_job != 'None':
-        n_job = int(n_job)
-    else: n_job = None
-    
-    button = st.button('Run KNN model')
-    if button:
-        if [n_neighbors, weight, algorithm, leaf, p, n_job] == [5, 'uniform', 'auto', 30, 2, None]:
-            y_pred_cv = KNN_model_cv.predict(X_test_cv)
-            y_pred_tfidf = KNN_model_tfidf.predict(X_test_tfidf)
-        else:
-            st.session_state.KNN_model_cv = KNeighborsClassifier(n_neighbors=n_neighbors, weights=weight, algorithm=algorithm, leaf_size=leaf, p=p, n_jobs=n_job)
-            st.session_state.KNN_model_tfidf = KNeighborsClassifier(n_neighbors=n_neighbors, weights=weight, algorithm=algorithm, leaf_size=leaf, p=p, n_jobs=n_job)
-            
-            y_pred_cv = Train_model(model_cv, 'KNN_model_cv', option=1)
-            y_pred_tfidf = Train_model(model_tfidf, 'KNN_model_tfidf', option=2)
-
-        measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
+    with center:
+        st.header('K-Nearest Neighbors Model')
+        # List parameters of K-Nearest Neighbors model
+        st.subheader('Select parameter')
+        n_neighbors = st.number_input('n_neighbors : int, default=5', value=5)
+        weight = st.radio('weights{‘uniform’, ‘distance’} or callable, default=’uniform’', ['uniform', 'distance'])
+        algorithm = st.radio('algorithm{‘auto’, ‘ball_tree’, ‘kd_tree’, ‘brute’}, default=’auto’', ['auto', 'ball_tree', 'kd_tree', 'brute'])
+        leaf = st.number_input('leaf_sizeint, default=30', value=30)
+        p = st.number_input('p : int, default=2', value=2)
+        n_job = st.text_input('n_jobs : int, default=None', value=None)
+        if n_job != 'None':
+            n_job = int(n_job)
+        else: n_job = None
         
-        col1, col2 = st.columns(2)
-        with col1:
-            Plot_confusion_matrix(KNN_model_cv, KNN_model_tfidf, model_name='KNN')
-        with col2:
-            Plot_bar_chart(measure_cv, measure_tfidf)
+        button = st.button('Run KNN model')
+    if button:
+        with hc.HyLoader('Wait for it...😅',hc.Loaders.standard_loaders,index=[3,0,5]):
+            if [n_neighbors, weight, algorithm, leaf, p, n_job] == [5, 'uniform', 'auto', 30, 2, None]:
+                y_pred_cv = KNN_model_cv.predict(X_test_cv)
+                y_pred_tfidf = KNN_model_tfidf.predict(X_test_tfidf)
+            else:
+                st.session_state.KNN_model_cv = KNeighborsClassifier(n_neighbors=n_neighbors, weights=weight, algorithm=algorithm, leaf_size=leaf, p=p, n_jobs=n_job)
+                st.session_state.KNN_model_tfidf = KNeighborsClassifier(n_neighbors=n_neighbors, weights=weight, algorithm=algorithm, leaf_size=leaf, p=p, n_jobs=n_job)
+                
+                y_pred_cv = Train_model(model_cv, 'KNN_model_cv')
+                y_pred_tfidf = Train_model(model_tfidf, 'KNN_model_tfidf')
+
+            measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                Plot_confusion_matrix(KNN_model_cv, KNN_model_tfidf, model_name='KNN')
+            with col2:
+                Plot_bar_chart(measure_cv, measure_tfidf)
 
 # Decision Tree model
 if menu_id == 'Decision Tree':
-    st.header('Decision Tree Model')
-    # List parameters of Decision Tree model
-    st.subheader('Select parameter')
-    criterion = st.radio('criterion{“gini”, “entropy”, “log_loss”}, default=”gini”', ['gini', 'entropy', 'log_loss'])
-    splitter = st.radio('splitter : {“best”, “random”}, default=”best”', ['best', 'random'])
-    max_depth = st.text_input('max_dept : hint, default=None', value=None)
-    if max_depth != 'None':
-        max_depth = int(max_depth)
-    else: max_depth = None
-    min_samples_split = st.number_input('min_samples_split : int or float, default=2', value=2)
-    min_samples_leaf = st.number_input('min_samples_leaf : int or float, default=1', value=1)
-    min_weight_fraction_leaf = st.number_input('min_weight_fraction_leaf : float, default=0.0', min_value=0.0, max_value=1.0, value=0.0)
-    max_features = st.radio('max_features : int, float or {“auto”, “sqrt”, “log2”}, default=None', ['int', 'float', 'auto', 'sqrt', 'log2', None], index=5)
-    if max_features == 'int' or max_features == 'float':
-        max_features = st.number_input('Enter value for max_features')
-    random_state = st.text_input('random_state : int, RandomState instance or None, default=None', value=0, key='tab6_random_state')
-    if random_state != 'None':
-        random_state = int(random_state)
-    else: random_state = None
-    max_leaf_nodes = st.text_input('max_leaf_nodes : int, default=None', value=None)
-    if max_leaf_nodes != 'None':
-        max_leaf_nodes = int(random_state)
-    else: max_leaf_nodes = None
-    
-    button = st.button('Run Decision Tree model')
-    if button:
-        if [criterion, splitter, max_depth, min_samples_split, min_samples_leaf, min_weight_fraction_leaf, max_features, random_state, max_leaf_nodes] == ['gini', 'best', None, 2, 1, 0.0, None, 0, None]:
-            y_pred_cv = DT_model_cv.predict(X_test_cv)
-            y_pred_tfidf = DT_model_tfidf.predict(X_test_tfidf)
-        else:
-            model_cv = DecisionTreeClassifier(criterion=criterion, splitter=splitter, max_depth=max_depth, 
-                                                min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf,
-                                                min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
-                                                random_state=random_state, max_leaf_nodes=max_leaf_nodes)
-            model_tfidf = DecisionTreeClassifier(criterion=criterion, splitter=splitter, max_depth=max_depth, 
-                                                min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf,
-                                                min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
-                                                random_state=random_state, max_leaf_nodes=max_leaf_nodes)
-            y_pred_cv = Train_model(model_cv, 'DT_model_cv', option=1)
-            y_pred_tfidf = Train_model(model_tfidf, 'DT_model_tfidf', option=2)
-
-        measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
+    with center:
+        st.header('Decision Tree Model')
+        # List parameters of Decision Tree model
+        st.subheader('Select parameter')
+        criterion = st.radio('criterion{“gini”, “entropy”, “log_loss”}, default=”gini”', ['gini', 'entropy', 'log_loss'])
+        splitter = st.radio('splitter : {“best”, “random”}, default=”best”', ['best', 'random'])
+        max_depth = st.text_input('max_dept : hint, default=None', value=None)
+        if max_depth != 'None':
+            max_depth = int(max_depth)
+        else: max_depth = None
+        min_samples_split = st.number_input('min_samples_split : int or float, default=2', value=2)
+        min_samples_leaf = st.number_input('min_samples_leaf : int or float, default=1', value=1)
+        min_weight_fraction_leaf = st.number_input('min_weight_fraction_leaf : float, default=0.0', min_value=0.0, max_value=1.0, value=0.0)
+        max_features = st.radio('max_features : int, float or {“auto”, “sqrt”, “log2”}, default=None', ['int', 'float', 'auto', 'sqrt', 'log2', None], index=5)
+        if max_features == 'int' or max_features == 'float':
+            max_features = st.number_input('Enter value for max_features')
+        random_state = st.text_input('random_state : int, RandomState instance or None, default=None', value=0, key='tab6_random_state')
+        if random_state != 'None':
+            random_state = int(random_state)
+        else: random_state = None
+        max_leaf_nodes = st.text_input('max_leaf_nodes : int, default=None', value=None)
+        if max_leaf_nodes != 'None':
+            max_leaf_nodes = int(random_state)
+        else: max_leaf_nodes = None
         
-        col1, col2 = st.columns(2)
-        with col1:
-            Plot_confusion_matrix(DT_model_cv, DT_model_tfidf, model_name='Decision Tree')
-        with col2:
-            Plot_bar_chart(measure_cv, measure_tfidf)
+        button = st.button('Run Decision Tree model')
+    if button:
+        with hc.HyLoader('Wait for it...😅',hc.Loaders.standard_loaders,index=[3,0,5]):
+            if [criterion, splitter, max_depth, min_samples_split, min_samples_leaf, min_weight_fraction_leaf, max_features, random_state, max_leaf_nodes] == ['gini', 'best', None, 2, 1, 0.0, None, 0, None]:
+                y_pred_cv = DT_model_cv.predict(X_test_cv)
+                y_pred_tfidf = DT_model_tfidf.predict(X_test_tfidf)
+            else:
+                model_cv = DecisionTreeClassifier(criterion=criterion, splitter=splitter, max_depth=max_depth, 
+                                                    min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf,
+                                                    min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
+                                                    random_state=random_state, max_leaf_nodes=max_leaf_nodes)
+                model_tfidf = DecisionTreeClassifier(criterion=criterion, splitter=splitter, max_depth=max_depth, 
+                                                    min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf,
+                                                    min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
+                                                    random_state=random_state, max_leaf_nodes=max_leaf_nodes)
+                y_pred_cv = Train_model(model_cv, 'DT_model_cv')
+                y_pred_tfidf = Train_model(model_tfidf, 'DT_model_tfidf')
+
+            measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                Plot_confusion_matrix(DT_model_cv, DT_model_tfidf, model_name='Decision Tree')
+            with col2:
+                Plot_bar_chart(measure_cv, measure_tfidf)
         
 # Random Forest model
 if menu_id == 'RandomForest':
-    st.header('Random Forest Model')
-    # List parameters of Random Forest model
-    st.subheader('Select parameter')
-    n_estimators = st.number_input('n_estimators : int, default=100', value=100)
-    criterion = st.radio('criterion{“gini”, “entropy”, “log_loss”}, default=”gini”', ['gini', 'entropy', 'log_loss'], key='randomforest')
-    max_depth = st.text_input('max_depth : int, default=None', value=None)
-    if max_depth != 'None':
-        max_depth = int(max_depth)
-    else: max_depth = None
-    min_samples_split = st.number_input('min_samples_split : int or float, default=2', value=2, key='tab7_min_samples_split')
-    min_samples_leaf = st.number_input('min_samples_leaf : int or float, default=1', value=1, key='tab7_min_samples_leaf')
-    min_weight_fraction_leaf = st.number_input('min_weight_fraction_leaf : float, default=0.0', min_value=0.0, max_value=1.0, value=0.0, key='tab7_min_weight_fraction_leaf')
-    max_features = st.radio('max_features : {“sqrt”, “log2”, None}, int or float, default=”sqrt”', ['sqrt', 'log2', None, 'int', 'float'])
-    if max_features in ['int', 'float']:
-        max_features = st.number_input('Enter value of max_features')
-    max_leaf_nodes = st.text_input('max_leaf_nodes : int, default=None', value=None, key='tab7_max_leaf_nodes')
-    if max_leaf_nodes != 'None':
-        max_leaf_nodes = int(random_state)
-    else: max_leaf_nodes = None
-    bootstrap = st.radio('bootstrap : bool, default=True', [True, False])
-    oob_score = st.radio('oob_score : bool, default=False', [True, False], index=1)
-    n_jobs = st.text_input('n_jobs : int, default=None', value=None, key='tab7_n_jobs')
-    if n_jobs != 'None':
-        n_jobs = int(n_jobs)
-    else: n_jobs = None
-    random_state = st.text_input('random_state : int, RandomState instance or None, default=None', value=0, key='tab7_random_state')
-    if random_state != 'None':
-        random_state = int(random_state)
-    else: random_state = None
-    max_samples = st.radio('max_samples : int or float, default=None', ['int', 'float', None], index=2)
-    if max_samples in ['int', 'float']:
-        max_samples = st.number_input('Enter value of max_samples')
+    with center:
+        st.header('Random Forest Model')
+        # List parameters of Random Forest model
+        st.subheader('Select parameter')
+        n_estimators = st.number_input('n_estimators : int, default=100', value=100)
+        criterion = st.radio('criterion{“gini”, “entropy”, “log_loss”}, default=”gini”', ['gini', 'entropy', 'log_loss'], key='randomforest')
+        max_depth = st.text_input('max_depth : int, default=None', value=None)
+        if max_depth != 'None':
+            max_depth = int(max_depth)
+        else: max_depth = None
+        min_samples_split = st.number_input('min_samples_split : int or float, default=2', value=2, key='tab7_min_samples_split')
+        min_samples_leaf = st.number_input('min_samples_leaf : int or float, default=1', value=1, key='tab7_min_samples_leaf')
+        min_weight_fraction_leaf = st.number_input('min_weight_fraction_leaf : float, default=0.0', min_value=0.0, max_value=1.0, value=0.0, key='tab7_min_weight_fraction_leaf')
+        max_features = st.radio('max_features : {“sqrt”, “log2”, None}, int or float, default=”sqrt”', ['sqrt', 'log2', None, 'int', 'float'])
+        if max_features in ['int', 'float']:
+            max_features = st.number_input('Enter value of max_features')
+        max_leaf_nodes = st.text_input('max_leaf_nodes : int, default=None', value=None, key='tab7_max_leaf_nodes')
+        if max_leaf_nodes != 'None':
+            max_leaf_nodes = int(random_state)
+        else: max_leaf_nodes = None
+        bootstrap = st.radio('bootstrap : bool, default=True', [True, False])
+        oob_score = st.radio('oob_score : bool, default=False', [True, False], index=1)
+        n_jobs = st.text_input('n_jobs : int, default=None', value=None, key='tab7_n_jobs')
+        if n_jobs != 'None':
+            n_jobs = int(n_jobs)
+        else: n_jobs = None
+        random_state = st.text_input('random_state : int, RandomState instance or None, default=None', value=0, key='tab7_random_state')
+        if random_state != 'None':
+            random_state = int(random_state)
+        else: random_state = None
+        max_samples = st.radio('max_samples : int or float, default=None', ['int', 'float', None], index=2)
+        if max_samples in ['int', 'float']:
+            max_samples = st.number_input('Enter value of max_samples')
         
-    button = st.button('Run Randomforest model')
+        button = st.button('Run Randomforest model')
     if button:
-        if [n_estimators, criterion, max_depth, min_samples_split, min_samples_leaf, min_weight_fraction_leaf, 
-            max_features, max_leaf_nodes, bootstrap, oob_score, n_jobs, random_state, max_samples] == [100, 'gini', None, 2, 1, 0.0, 'sqrt', None, True, False, None, 0, None]:
-            y_pred_cv = RF_model_cv.predict(X_test_cv)
-            y_pred_tfidf = RF_model_tfidf.predict(X_test_tfidf)
-        else:
-            model_cv = RandomForestClassifier(n_estimators=n_estimators, criterion=criterion, max_depth=max_depth, min_samples_split=min_samples_split,
-                                                min_samples_leaf=min_samples_leaf, min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
-                                                max_leaf_nodes=max_leaf_nodes, bootstrap=bootstrap, oob_score=oob_score, n_jobs=n_jobs, random_state=random_state, max_samples=max_samples)
-            model_tfidf = RandomForestClassifier(n_estimators=n_estimators, criterion=criterion, max_depth=max_depth, min_samples_split=min_samples_split,
-                                                min_samples_leaf=min_samples_leaf, min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
-                                                max_leaf_nodes=max_leaf_nodes, bootstrap=bootstrap, oob_score=oob_score, n_jobs=n_jobs, random_state=random_state, max_samples=max_samples)
-        
-            y_pred_cv = Train_model(model_cv, 'RF_model_cv', option=1)
-            y_pred_tfidf = Train_model(model_tfidf, 'RF_model_tfidf', option=2)
+        with hc.HyLoader('Wait for it...😅',hc.Loaders.standard_loaders,index=[3,0,5]):
+            if [n_estimators, criterion, max_depth, min_samples_split, min_samples_leaf, min_weight_fraction_leaf, 
+                max_features, max_leaf_nodes, bootstrap, oob_score, n_jobs, random_state, max_samples] == [100, 'gini', None, 2, 1, 0.0, 'sqrt', None, True, False, None, 0, None]:
+                y_pred_cv = RF_model_cv.predict(X_test_cv)
+                y_pred_tfidf = RF_model_tfidf.predict(X_test_tfidf)
+            else:
+                model_cv = RandomForestClassifier(n_estimators=n_estimators, criterion=criterion, max_depth=max_depth, min_samples_split=min_samples_split,
+                                                    min_samples_leaf=min_samples_leaf, min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
+                                                    max_leaf_nodes=max_leaf_nodes, bootstrap=bootstrap, oob_score=oob_score, n_jobs=n_jobs, random_state=random_state, max_samples=max_samples)
+                model_tfidf = RandomForestClassifier(n_estimators=n_estimators, criterion=criterion, max_depth=max_depth, min_samples_split=min_samples_split,
+                                                    min_samples_leaf=min_samples_leaf, min_weight_fraction_leaf=min_weight_fraction_leaf, max_features=max_features,
+                                                    max_leaf_nodes=max_leaf_nodes, bootstrap=bootstrap, oob_score=oob_score, n_jobs=n_jobs, random_state=random_state, max_samples=max_samples)
+            
+                y_pred_cv = Train_model(model_cv, 'RF_model_cv')
+                y_pred_tfidf = Train_model(model_tfidf, 'RF_model_tfidf')
 
-        measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            Plot_confusion_matrix(RF_model_cv, RF_model_tfidf, model_name='RandomForest')
-        with col2:
-            Plot_bar_chart(measure_cv, measure_tfidf)
+            measure_cv, measure_tfidf = Plot_table_measure(y_test, y_pred_cv, y_pred_tfidf)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                Plot_confusion_matrix(RF_model_cv, RF_model_tfidf, model_name='RandomForest')
+            with col2:
+                Plot_bar_chart(measure_cv, measure_tfidf)
         
 # Votingclassifier model
 if menu_id == 'VotingClassifier':
@@ -486,16 +497,17 @@ if menu_id == 'VotingClassifier':
                 Plot_bar_chart([acc_cv, pre_cv, recall_cv, f1_cv_avg], [acc_tfidf, pre_tfidf, recall_tfidf, f1_tfidf_avg])
                 
 if menu_id == 'Enter Your Name':
-    st.markdown("<h1 style='text-align: center; color: grey;'>Enter Your Name</h1>", unsafe_allow_html=True)
-    name = st.text_input('', label_visibility="collapsed")
-    if st.button('Predict'):
-        name = Preprocessing(name)
-        st.markdown("<h1 style='text-align: center; color: grey;'>Predict Gender</h1>", unsafe_allow_html=True)
-        vector = st.session_state.encode_cv.transform([name]).toarray()
-        y_pred = Voting_clf_cv.predict(vector)
-        if y_pred==0:
-            st.markdown("<h1 style='text-align: center; color: green;'>Gender is Female</h1>", unsafe_allow_html=True)
-        else: st.markdown("<h1 style='text-align: center; color: green;'>Gender is Male</h1>", unsafe_allow_html=True)
+    with center:
+        st.markdown("<h1 style='text-align: center; color: grey;'>Enter Your Name</h1>", unsafe_allow_html=True)
+        name = st.text_input('', label_visibility="collapsed")
+        if st.button('Predict'):
+            with st.spinner('Wait for it...'):
+                name = Preprocessing(name)
+                vector = st.session_state.encode_cv.transform([name]).toarray()
+                y_pred = Voting_clf_cv.predict(vector)
+                if y_pred==0:
+                    st.markdown("<h1 style='text-align: center; color: #F318DC;'>Gender is Female👩</h1>", unsafe_allow_html=True)
+                else: st.markdown("<h1 style='text-align: center; color: #18B7F3;'>Gender is Male👨</h1>", unsafe_allow_html=True)
 if menu_id == 'Enter Your File (Excel)':
     st.subheader('Upload File Fullname (xlsx):')
     file_upload = st.file_uploader('', type='XLSX')
